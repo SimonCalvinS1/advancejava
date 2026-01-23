@@ -1,4 +1,4 @@
-package DoctorAppointmentManager.javafx;
+package DoctorAppointmentManager.subproject;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -37,22 +37,19 @@ public class DoctorRecordManagerFX extends Application {
 
     @Override
     public void start(Stage stage) {
-        // --- Network & Connectivity Check ---
         checkNetworkInfo();
         checkRemoteStatus("http://google.com"); // Example: checking connectivity to a web service
 
         connectDB();
 
-        // --- STYLING ---
         String cardStyle = "-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);";
         String btnStyle = "-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;";
         String accentBtn = "-fx-background-color: #16a085; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;";
 
-        // Network Status Header
         networkLabel = new Label("Network Status: Initializing...");
         networkLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #7f8c8d;");
 
-        // --- DOCTOR CARD ---
+        // DOCTOR CARD
         VBox docCard = new VBox(10);
         docCard.setStyle(cardStyle);
         docCard.setPadding(new Insets(15));
@@ -74,14 +71,14 @@ public class DoctorRecordManagerFX extends Application {
 
         docCard.getChildren().addAll(new Label("DOCTOR MANAGEMENT"), docIdField, docNameField, docSpecField, imgFrame, docNav, docActions);
 
-        // --- PATIENT CARD ---
+        // PATIENT CARD
         VBox patCard = new VBox(10);
         patCard.setStyle(cardStyle);
         patCard.setPadding(new Insets(15));
         patNameField = new TextField(); patNameField.setPromptText("Patient Name");
         patCard.getChildren().addAll(new Label("PATIENT REGISTRATION"), patNameField, createBtn("Register Patient", e->insertPatient(), accentBtn));
 
-        // --- VIEW CARD ---
+        // VIEW CARD
         VBox displayCard = new VBox(10);
         displayCard.setStyle(cardStyle);
         displayCard.setPadding(new Insets(15));
@@ -94,7 +91,7 @@ public class DoctorRecordManagerFX extends Application {
         );
         displayCard.getChildren().addAll(new Label("RECORDS VIEW"), displayArea, viewActions);
 
-        // --- METADATA ---
+        // METADATA
         metaArea = new TextArea(); metaArea.setEditable(false); metaArea.setPrefHeight(80);
 
         VBox root = new VBox(15, networkLabel, new HBox(15, docCard, patCard), displayCard, new Label("Metadata"), metaArea);
@@ -108,7 +105,6 @@ public class DoctorRecordManagerFX extends Application {
         stage.show();
     }
 
-    // ---------------- NETWORKING: InetAddress ----------------
     private void checkNetworkInfo() {
         try {
             InetAddress localHost = InetAddress.getLocalHost();
@@ -120,20 +116,19 @@ public class DoctorRecordManagerFX extends Application {
         }
     }
 
-    // ---------------- NETWORKING: URLConnection ----------------
     private void checkRemoteStatus(String urlString) {
         try {
-            java.net.URL url = new java.net.URL(urlString);
+            URL url = new URL(urlString);
             URLConnection connection = url.openConnection();
             connection.setConnectTimeout(3000);
             connection.connect();
-            System.out.println("External Service Status: ONLINE");
+            System.out.println("External Service Status: ONLINE, URL: " + url);
         } catch (Exception e) {
             System.err.println("External Service Status: OFFLINE (" + e.getMessage() + ")");
         }
     }
 
-    // ---------------- OTP & SECURITY ----------------
+    // OTP & SECURITY
     private void validateAndRun(Runnable action) {
         generatedOTP = String.format("%04d", new Random().nextInt(10000));
         System.out.println(">> SECURITY ALERT: Your Access OTP is: " + generatedOTP);
@@ -151,7 +146,7 @@ public class DoctorRecordManagerFX extends Application {
         }
     }
 
-    // ---------------- DB OPERATIONS ----------------
+    // DB OPERATIONS
     private void connectDB() {
         try {
             con = DriverManager.getConnection(URL, USER, PASS);
