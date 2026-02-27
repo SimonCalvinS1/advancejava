@@ -3,62 +3,85 @@ package DoctorAppointmentManager.rmiproject;
 import javax.swing.*;
 import java.awt.*;
 import java.rmi.Naming;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
 
-public class DoctorMeetingSwingClient extends JFrame {
+public class DoctorMeetingSwingClient extends UnicastRemoteObject
+        implements ClientCallback {
 
     private RemoteService service;
 
-    private JTextField doctorField = new JTextField(15);
-    private JTextField patientField = new JTextField(15);
-    private JComboBox<String> priorityBox =
-            new JComboBox<>(new String[]{"Emergency", "Routine", "Follow-up"});
+    private JFrame frame;
+    private JTextField doctorField;
+    private JTextField patientField;
+    private JComboBox<String> priorityBox;
+    private JTextArea outputArea;
+    private JLabel statusLabel;
 
-    private JTextArea outputArea = new JTextArea();
-
-    public DoctorMeetingSwingClient() {
-
-        setTitle("Hospital Remote Booking System");
-        setSize(600, 500);
-        setLocationRelativeTo(null);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-
+    protected DoctorMeetingSwingClient() throws Exception {
+        super();
+        initializeGUI();
         connectToServer();
+    }
 
-        JPanel form = new JPanel(new GridLayout(4, 2, 10, 10));
-        form.setBorder(BorderFactory.createTitledBorder("New Booking"));
+    private void initializeGUI() {
 
-        form.add(new JLabel("Doctor Name:"));
-        form.add(doctorField);
+        frame = new JFrame("Hospital Remote Booking Portal");
+        frame.setSize(650, 550);
+        frame.setLayout(new BorderLayout());
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        form.add(new JLabel("Patient Name:"));
-        form.add(patientField);
+        JPanel topPanel = new JPanel(new GridLayout(4, 2, 10, 10));
+        topPanel.setBorder(BorderFactory.createTitledBorder("New Appointment"));
 
-        form.add(new JLabel("Priority:"));
-        form.add(priorityBox);
+        doctorField = new JTextField();
+        patientField = new JTextField();
+        priorityBox = new JComboBox<>(new String[]{
+                "Emergency", "Routine", "Follow-up"
+        });
+
+        topPanel.add(new JLabel("Doctor Name:"));
+        topPanel.add(doctorField);
+
+        topPanel.add(new JLabel("Patient Name:"));
+        topPanel.add(patientField);
+
+        topPanel.add(new JLabel("Priority:"));
+        topPanel.add(priorityBox);
 
         JButton bookBtn = new JButton("Book Meeting");
         JButton emergencyBtn = new JButton("View Emergencies");
 
-        form.add(bookBtn);
-        form.add(emergencyBtn);
+        topPanel.add(bookBtn);
+        topPanel.add(emergencyBtn);
 
+        outputArea = new JTextArea();
         outputArea.setEditable(false);
-        JScrollPane scroll = new JScrollPane(outputArea);
+        JScrollPane scrollPane = new JScrollPane(outputArea);
 
-        add(form, BorderLayout.NORTH);
-        add(scroll, BorderLayout.CENTER);
+        statusLabel = new JLabel("Server: Connecting...");
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+
+        frame.add(topPanel, BorderLayout.NORTH);
+        frame.add(scrollPane, BorderLayout.CENTER);
+        frame.add(statusLabel, BorderLayout.SOUTH);
 
         bookBtn.addActionListener(e -> bookMeeting());
         emergencyBtn.addActionListener(e -> loadEmergencies());
 
-        setVisible(true);
+        frame.setVisible(true);
     }
 
     private void connectToServer() {
         try {
-            service = (RemoteService) Naming.lookup("rmi://localhost/DoctorService");
-            outputArea.append("Connected to: " + service.getServerStatus() + "\n\n");
+            service = (RemoteService)
+                    Naming.lookup("rmi://localhost/DoctorService");
+
+            service.registerClient(this);
+
+            statusLabel.setText(service.getServerStatus());
+            outputArea.append("Connected successfully.\n\n");
+
         } catch (Exception e) {
             outputArea.append("Connection failed: " + e.getMessage());
         }
@@ -71,11 +94,14 @@ public class DoctorMeetingSwingClient extends JFrame {
             String priority = priorityBox.getSelectedItem().toString();
 
             if (doctor.isEmpty() || patient.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "All fields required");
+                JOptionPane.showMessageDialog(frame,
+                        "All fields required");
                 return;
             }
 
-            MeetingRequest req = new MeetingRequest(doctor, patient, priority);
+            MeetingRequest req =
+                    new MeetingRequest(doctor, patient, priority);
+
             String response = service.processBooking(req);
 
             outputArea.append(response + "\n");
@@ -90,22 +116,42 @@ public class DoctorMeetingSwingClient extends JFrame {
 
     private void loadEmergencies() {
         try {
-            outputArea.append("\n--- EMERGENCY MEETINGS ---\n");
+            outputArea.append("\n--- Emergency Meetings ---\n");
 
-            List<MeetingRequest> list = service.getHighPriorityMeetings();
+            List<MeetingRequest> list =
+                    service.getHighPriorityMeetings();
 
             if (list.isEmpty()) {
-                outputArea.append("No emergency meetings.\n");
+                outputArea.append("No emergencies.\n");
             } else {
-                list.forEach(m -> outputArea.append(m + "\n"));
+                list.forEach(m ->
+                        outputArea.append(m + "\n"));
             }
 
         } catch (Exception e) {
-            outputArea.append("Fetch error: " + e.getMessage() + "\n");
+            outputArea.append("Error: " + e.getMessage() + "\n");
         }
     }
 
+    @Override
+    public void notifyClient(String message) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(frame,
+                    message,
+                    "🚨 Emergency Alert",
+                    JOptionPane.WARNING_MESSAGE);
+
+            outputArea.append("\n[ALERT RECEIVED] " + message + "\n");
+        });
+    }
+
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(DoctorMeetingSwingClient::new);
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new DoctorMeetingSwingClient();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
