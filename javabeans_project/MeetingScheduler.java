@@ -1,23 +1,15 @@
 package DoctorAppointmentManager.javabeans_project;
 
-//javac -cp "..;..\mysql-connector-j-9.2.0.jar" MeetingScheduler.java
-//java -cp "..;..\mysql-connector-j-9.2.0.jar" MeetingScheduler.java
-
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.table.*;
+import javax.swing.border.*;
 import java.awt.*;
 import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.io.Serializable;
 
 public class MeetingScheduler extends JFrame {
     private MeetingServiceBean service = new MeetingServiceBean();
@@ -27,62 +19,110 @@ public class MeetingScheduler extends JFrame {
     private DefaultTableModel tableModel;
     private JLabel statusLabel;
 
+    private final Color PRIMARY_COLOR = new Color(41, 128, 185); // Blue
+    private final Color SUCCESS_COLOR = new Color(39, 174, 96);  // Green
+    private final Color DANGER_COLOR = new Color(192, 57, 43);   // Red
+    private final Color BACKGROUND_COLOR = new Color(236, 240, 241); // Light Gray
+    private final Color SIDEBAR_COLOR = new Color(44, 62, 80);   // Dark Navy
+
     public MeetingScheduler() {
         setTitle("Medi-Connect Pro - Enterprise Scheduler");
-        setSize(900, 600);
+        setSize(1000, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        getContentPane().setBackground(BACKGROUND_COLOR);
 
-        // --- TOP: Registration Form ---
-        JPanel formPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
-        formPanel.setBorder(BorderFactory.createTitledBorder("Quick Schedule"));
+        JPanel formPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(new MatteBorder(0, 0, 2, 0, PRIMARY_COLOR));
+        
+        JLabel titleLabel = new JLabel("Quick Booking:");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         
         patientField = new JTextField(15);
+        patientField.setPreferredSize(new Dimension(200, 30));
+        
         typeCombo = new JComboBox<>(new String[]{"Consultation", "Emergency", "Follow-up"});
-        JButton saveBtn = new JButton("Book Appointment");
-        saveBtn.setBackground(new Color(41, 128, 185));
-        saveBtn.setForeground(Color.WHITE);
+        typeCombo.setPreferredSize(new Dimension(150, 30));
+        
+        JButton saveBtn = createStyledButton("Book Appointment", SUCCESS_COLOR);
 
-        formPanel.add(new Label("Patient:")); formPanel.add(patientField);
-        formPanel.add(new Label("Type:")); formPanel.add(typeCombo);
+        formPanel.add(titleLabel);
+        formPanel.add(new JLabel("Patient:")); formPanel.add(patientField);
+        formPanel.add(new JLabel("Type:")); formPanel.add(typeCombo);
         formPanel.add(saveBtn);
 
-        // --- CENTER: Data Table ---
         String[] columns = {"ID", "Patient Name", "Meeting Type", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         table = new JTable(tableModel);
-        table.setRowHeight(25);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        styleTable(table);
 
-        // --- RIGHT: Action Sidebar ---
-        JPanel sideBar = new JPanel(new GridLayout(6, 1, 5, 5));
-        JButton btnComplete = new JButton("Mark Completed");
-        JButton btnCancel = new JButton("Cancel Appt");
-        JButton btnRefresh = new JButton("Refresh List");
+        JPanel sideBar = new JPanel(new GridLayout(8, 1, 10, 15));
+        sideBar.setBackground(SIDEBAR_COLOR);
+        sideBar.setBorder(new EmptyBorder(20, 15, 20, 15));
         
-        sideBar.add(btnComplete); sideBar.add(btnCancel); 
-        sideBar.add(new JSeparator()); sideBar.add(btnRefresh);
+        JLabel sideTitle = new JLabel("ACTIONS");
+        sideTitle.setForeground(Color.WHITE);
+        sideTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        sideTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
 
-        // --- BOTTOM: Status Bar ---
+        JButton btnComplete = createStyledButton("Mark Completed", SUCCESS_COLOR);
+        JButton btnCancel = createStyledButton("Cancel Appt", DANGER_COLOR);
+        JButton btnRefresh = createStyledButton("Refresh List", PRIMARY_COLOR);
+        
+        sideBar.add(sideTitle);
+        sideBar.add(btnComplete); 
+        sideBar.add(btnCancel); 
+        sideBar.add(new JSeparator()); 
+        sideBar.add(btnRefresh);
+
         statusLabel = new JLabel(" System Ready");
-        statusLabel.setBorder(BorderFactory.createLoweredBevelBorder());
+        statusLabel.setOpaque(true);
+        statusLabel.setBackground(PRIMARY_COLOR);
+        statusLabel.setForeground(Color.WHITE);
+        statusLabel.setPreferredSize(new Dimension(100, 30));
+        statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
-        // Layout Assembly
         setLayout(new BorderLayout());
         add(formPanel, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
-        add(sideBar, BorderLayout.EAST);
+        add(sideBar, BorderLayout.WEST); // Moved to West for a modern dashboard look
         add(statusLabel, BorderLayout.SOUTH);
 
-        // Listeners
         saveBtn.addActionListener(e -> handleSave());
         btnRefresh.addActionListener(e -> loadTableData());
         btnComplete.addActionListener(e -> updateSelectedStatus("Completed"));
         btnCancel.addActionListener(e -> updateSelectedStatus("Cancelled"));
 
         loadTableData();
+    }
+
+    private JButton createStyledButton(String text, Color color) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setBackground(color);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(new EmptyBorder(10, 15, 10, 15));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private void styleTable(JTable table) {
+        table.setRowHeight(35);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        table.setSelectionBackground(PRIMARY_COLOR);
+        table.setSelectionForeground(Color.WHITE);
+        table.setShowVerticalLines(false);
+        table.setGridColor(BACKGROUND_COLOR);
+
+        JTableHeader header = table.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        header.setBackground(SIDEBAR_COLOR);
+        header.setForeground(Color.WHITE);
+        header.setPreferredSize(new Dimension(100, 40));
     }
 
     private void handleSave() {
@@ -93,6 +133,7 @@ public class MeetingScheduler extends JFrame {
         MeetingBean bean = new MeetingBean();
         bean.setPatientName(patientField.getText());
         bean.setMeetingType((String) typeCombo.getSelectedItem());
+        bean.setStatus("Scheduled");
         bean.setTimestamp(LocalDateTime.now());
         bean.setRemarks("System Generated Entry");
 
@@ -128,6 +169,7 @@ public class MeetingScheduler extends JFrame {
         SwingUtilities.invokeLater(() -> new MeetingScheduler().setVisible(true));
     }
 
+    // --- (Include your inner classes MeetingBean and MeetingServiceBean here) ---
     class MeetingBean implements Serializable {
         private int meetingId;
         private String patientName;
@@ -135,33 +177,18 @@ public class MeetingScheduler extends JFrame {
         private String status;
         private LocalDateTime timestamp;
         private String remarks;
-
-        // No-argument constructor
         public MeetingBean() {}
-
-        // Getters and Setters
         public int getMeetingId() { return meetingId; }
-
         public void setMeetingId(int meetingId) { this.meetingId = meetingId; }
-
         public String getPatientName() { return patientName; }
-
         public void setPatientName(String patientName) { this.patientName = patientName; }
-
         public String getMeetingType() { return meetingType; }
-
         public void setMeetingType(String meetingType) { this.meetingType = meetingType; }
-
         public String getStatus() { return status; }
-
         public void setStatus(String status) { this.status = status; }
-
         public LocalDateTime getTimestamp() { return timestamp; }
-
         public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-
         public String getRemarks() { return remarks; }
-
         public void setRemarks(String remarks) { this.remarks = remarks; }
     }
 
@@ -169,12 +196,10 @@ public class MeetingScheduler extends JFrame {
         private final String URL = "jdbc:mysql://localhost:3306/doctor_db";
         private final String USER = "newuser";
         private final String PASS = "password123";
-
         public MeetingServiceBean() {
             try { Class.forName("com.mysql.cj.jdbc.Driver"); } 
             catch (Exception e) { e.printStackTrace(); }
         }
-
         public List<MeetingBean> getAllMeetings() {
             List<MeetingBean> list = new ArrayList<>();
             try (Connection con = DriverManager.getConnection(URL, USER, PASS);
@@ -191,7 +216,6 @@ public class MeetingScheduler extends JFrame {
             } catch (SQLException e) { e.printStackTrace(); }
             return list;
         }
-
         public boolean updateStatus(int id, String newStatus) {
             String sql = "UPDATE doctor_meetings SET status = ? WHERE meeting_id = ?";
             try (Connection con = DriverManager.getConnection(URL, USER, PASS);
@@ -201,7 +225,6 @@ public class MeetingScheduler extends JFrame {
                 return ps.executeUpdate() > 0;
             } catch (SQLException e) { return false; }
         }
-
         public boolean scheduleMeeting(MeetingBean meeting) {
             String sql = "INSERT INTO doctor_meetings (patient_name, meeting_type, status, meeting_timestamp, remarks) VALUES (?, ?, ?, ?, ?)";
             try (Connection con = DriverManager.getConnection(URL, USER, PASS);
